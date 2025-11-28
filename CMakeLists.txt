@@ -49,10 +49,10 @@ include_directories(${CMAKE_SOURCE_DIR})
 
 #Finds GLFW
 find_package(PkgConfig REQUIRED)
+find_package(SDL3 REQUIRED)
 find_package(assimp REQUIRED)
-pkg_search_module(GLFW REQUIRED glfw3)
 
-#Add executable
+# Add executable
 add_executable(${PROJECT_NAME}
     main.cpp
     Shader.cpp
@@ -67,7 +67,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 #Linkea GLFW y OpenGL
 target_link_libraries(${PROJECT_NAME}
-    ${GLFW_LIBRARIES}
+    SDL3::SDL3 
+    SDL3_image 
+    SDL3_ttf
     GL
     dl
     assimp::assimp

@@ -1,52 +1,52 @@
 #pragma once
 
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_video.h>
 #include <ctime>
 #ifndef MAIN_HPP
 #define MAIN_HPP
 
 #include "Camera.hpp"
 
-#include <GLFW/glfw3.h>
+#include <SDL3/SDL.h>
 #include <assimp/light.h>
 #include "Shader.hpp"
 #include "stb_image.h"
 
 //window settings
-const unsigned int SCREEN_WIDTH = 800;
-const unsigned int SCREEN_HEIGHT = 600;
+constexpr unsigned int SCREEN_WIDTH{640};
+constexpr unsigned int SCREEN_HEIGHT{480};
 
-class glClock_NG{
+class glClockpp{
     public:
         
-        glClock_NG();
-        ~glClock_NG();
-
-        static void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-        static void mouse_callback(GLFWwindow *window, double xpos, double ypos);
-        static void mouse_button_callback(GLFWwindow *window, int button, int action, int mods);
-        static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
-        static void processInput(GLFWwindow *window);
-
-        void UpdateWindowTitle(GLFWwindow *window);
-
-        //Getters and setters
-        bool getMouse() const {return firstMouse;}
-        void setMouse(bool fMouse){firstMouse = fMouse;}
-
-        bool getMouseRotating() const {return rotating;}
-        void setMouseRotating(bool rMouse){rotating = rMouse;}
-
-        float getDeltaTime() const {return deltaTime;}
-        void setDeltaTime(float dTime){deltaTime = dTime;}
-
-        float getLastFrame() const {return lastFrame;}
-        void setLastFrame(float lFrame){lastFrame = lFrame;}
-
-        GLFWwindow *getWindow() const {return window;}
-
-        Camera &getCamera(){return camera;}
+        glClockpp();
+        ~glClockpp();
 
         std::tm *getLocalTime();
+
+        bool initializeSDL();
+
+        //Handlers
+        void handleKeyboardEvent(SDL_Event &event);
+        void handleMouseEvent(SDL_Window *window, SDL_Event &event);
+        void handleMouseMotionEvent(SDL_Event &event);
+        void handleMouseScrollEvent(SDL_Event &event);
+        void handleWindowSizeChange();
+        
+        //Getters and setters
+        Camera &getCamera(){return camera;}
+        SDL_Window *getWindow(){return gWindow;}
+        SDL_Event *getEvent(){return &event;}
+        float getDeltaTime() const {return deltaTime;}
+        void setDeltaTime(float dTime){deltaTime = dTime;}
+        bool getMouseRotating() const {return rotating;}
+        void setMouseRotating(bool rMouse){rotating = rMouse;}
+        float getWindowWidth() const {return window_Width;}
+        float getWindowHeight() const {return window_Height;}
+
+        void UpdateWindowTitle(SDL_Window *window);
 
     private:
 
@@ -62,12 +62,18 @@ class glClock_NG{
         float lastFrame;
 
         //Window and title info
-        GLFWwindow *window;
+        int window_Width;
+        int window_Height;
+        SDL_Window *gWindow;
+        SDL_Renderer *gRenderer;
+        SDL_Event event;
+        SDL_GLContext ctx;
         std::string title;
         std::string auxconst;
         std::string auxinfo;
         std::string oglInfo;
 };
+
 
 
 #endif //!_MAIN_HPP

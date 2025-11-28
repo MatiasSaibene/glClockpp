@@ -1,6 +1,16 @@
 #include "main.hpp"
-#include <GLFW/glfw3.h>
+#include <SDL3/SDL.h>
 
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_log.h>
+#include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_stdinc.h>
+#include <SDL3/SDL_timer.h>
+#include <SDL3/SDL_video.h>
 #include <cstring>
 #include <ctime>
 #include <cstddef>
@@ -18,62 +28,84 @@
 #include <glm/trigonometric.hpp>
 #include <iostream>
 
-glClock_NG::glClock_NG() : camera(glm::vec3(0.0f, 0.0f, 0.25f)){
+glClockpp::glClockpp(){
 
     //initialize camera
     lastX = SCREEN_WIDTH / 2.0f;
     lastY = SCREEN_HEIGHT / 2.0f;
     firstMouse = true;
     rotating = false;
+    camera.Yaw = 0.0f;
 
     //initialize timing
     deltaTime = 0.0f;
     lastFrame = 0.0f;
 
     //initialize window
-    window = nullptr;
+    gWindow = nullptr;
+    gRenderer = nullptr;
+
+    SDL_zero(event);
 }
 
-glClock_NG::~glClock_NG(){
+glClockpp::~glClockpp(){
+
+}
+
+bool glClockpp::initializeSDL(){
+
+    bool success{true};
+
+    if(SDL_Init(SDL_INIT_VIDEO) == false){
+        SDL_Log("SDL couldt not initialize! SDL error: %s\n", SDL_GetError());
+        success = false;
+    } else {
+        if(SDL_CreateWindowAndRenderer("Initializing glClock++ - v0.2 Beta - (c)2025 Matías Saibene", SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE, &gWindow, &gRenderer) == false){
+            SDL_Log( "Window could not be created! SDL error: %s\n", SDL_GetError() );
+            success = false;
+        } else {
+            ctx = SDL_GL_CreateContext(gWindow);
+            if(!ctx){
+                SDL_Log("GL Context error: %s\n", SDL_GetError());
+                success = false;
+            } else {
+                SDL_GL_MakeCurrent(gWindow, ctx);
+                success = true;
+            }
+        }
+    }
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+    return success;
 
 }
 
 int main(){
 
-    glClock_NG glClock;
+    //Useful variables
+    int exitCode{0};
+    int width = 4, height = 3;
 
-    auto window = glClock.getWindow();
+    glClockpp glClock;
 
     //glfw: initialize and configure;
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    //glfw window creation
-    window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Initializing glClock++ - v1.0 Beta - (c)2025 Matías Saibene", NULL, NULL);
-    if(window == NULL){
-        std::cout << "Failed to create a GLFW window" << std::endl;
-        glfwTerminate();
-        return -1;
+    if(glClock.initializeSDL() == false){
+        SDL_Log("Unable to initialize program!\n");
+        exitCode = 1;
     }
-    glfwMakeContextCurrent(window);
-    glfwSetWindowUserPointer(window, &glClock);
-    glfwSetFramebufferSizeCallback(window, glClock_NG::framebuffer_size_callback);
-    glfwSetMouseButtonCallback(window, glClock_NG::mouse_button_callback);
-    glfwSetCursorPosCallback(window, glClock_NG::mouse_callback);
-    glfwSetScrollCallback(window, glClock_NG::scroll_callback);
-
 
     Camera &camera = glClock.getCamera();
+    camera.Yaw = 0.0f;
+
+    SDL_Window *window = glClock.getWindow();
     
-    // tell GLFW to capture our mouse
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
+    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)){
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
@@ -111,10 +143,46 @@ int main(){
 
     glClock.UpdateWindowTitle(window);
 
+    bool quit{false};
+
+    SDL_Event *e = glClock.getEvent();
 
     // render loop
     // -----------
-    while(!glfwWindowShouldClose(window)){
+    while(quit == false){
+
+        while(SDL_PollEvent(e) == true){
+            
+            switch(e->type){
+
+                case SDL_EVENT_QUIT:
+                    quit = true;
+                    break;
+
+                case SDL_EVENT_KEY_DOWN:
+                    glClock.handleKeyboardEvent(*e);
+                    break;
+
+                case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                case SDL_EVENT_MOUSE_BUTTON_UP:
+                    glClock.handleMouseEvent(window, *e);
+                    break;
+
+                case SDL_EVENT_MOUSE_MOTION:
+                    glClock.handleMouseMotionEvent(*e);
+                    break;
+
+                case SDL_EVENT_MOUSE_WHEEL:
+                    glClock.handleMouseScrollEvent(*e);
+                    break;                
+
+                case SDL_EVENT_WINDOW_RESIZED:
+                    glClock.handleWindowSizeChange();
+                    width = glClock.getWindowWidth();
+                    height = glClock.getWindowHeight();
+                    break;
+            }
+        }
 
         auto *lTime = glClock.getLocalTime();
         hours = lTime->tm_hour;
@@ -125,13 +193,11 @@ int main(){
 
         // per-frame time logic
         // --------------------
-        float currentFrame = static_cast<float>(glfwGetTime());
-        float dTime = currentFrame - glClock.getLastFrame();
-
-        glClock.setDeltaTime(dTime);
-        glClock.setLastFrame(currentFrame);
-
-        glClock.processInput(window);
+        constexpr Uint64 nsPerFrame = 1000000000 / 60;
+        Uint64 frameNS{SDL_GetTicksNS()};
+        if(frameNS < nsPerFrame){
+            SDL_DelayNS(nsPerFrame - frameNS);
+        }
 
         // render
         // ------
@@ -171,7 +237,7 @@ int main(){
 
 
         // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)width / height, 0.1f, 100.0f);
         //glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 view = camera.GetViewMatrix();
         modelShader.setMat4("projection", projection);
@@ -195,92 +261,13 @@ int main(){
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-}
-
-void glClock_NG::processInput(GLFWwindow *window){
-
-    auto *instance = static_cast<glClock_NG *>(glfwGetWindowUserPointer(window));
-
-    Camera &camera = instance->getCamera();
-
-    float dTime = instance->getDeltaTime();
-
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, dTime);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, dTime);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, dTime);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, dTime);
-
-}
-
-void glClock_NG::framebuffer_size_callback(GLFWwindow *window, int width, int height){
-
-    glViewport(0, 0, width, height);
-
-}
-
-void glClock_NG::mouse_button_callback(GLFWwindow *window, int button, int action, int mods){
-
-    auto *instance = static_cast<glClock_NG *>(glfwGetWindowUserPointer(window));
-
-    if(button == GLFW_MOUSE_BUTTON_LEFT){
-        if(action == GLFW_PRESS){
-            instance->setMouseRotating(true);
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        } else if(action == GLFW_RELEASE){
-            instance->setMouseRotating(false);
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        }
-    }
-}
-
-void glClock_NG::mouse_callback(GLFWwindow *window, double xposIn, double yposIn){
-    
-    auto *instance = static_cast<glClock_NG *>(glfwGetWindowUserPointer(window));
-
-    auto fMouse = instance->getMouse();
-    auto rMouse = instance->getMouseRotating();
-
-    if(!rMouse) return;
-
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
-
-    if(fMouse){
-        instance->lastX = xpos;
-        instance->lastY = ypos;
-        instance->setMouse(false);
+        SDL_GL_SwapWindow(window);
     }
 
-    float xoffset = xpos - instance->lastX;
-    float yoffset = instance->lastY - ypos;
-
-    instance->lastX = xpos;
-    instance->lastY = ypos;
-
-    instance->camera.ProcessMouseMovement(xoffset, yoffset);
-
+    return exitCode;
 }
 
-void glClock_NG::scroll_callback(GLFWwindow *window, double xoffset, double yoffset){
-
-    auto *instance = static_cast<glClock_NG *>(glfwGetWindowUserPointer(window));
-
-    Camera &camera = instance->getCamera();
-
-    camera.ProcessMouseScroll(yoffset);
-}
-
-std::tm *glClock_NG::getLocalTime(){
+std::tm *glClockpp::getLocalTime(){
 
     std::time_t now = std::time(nullptr);
     std::tm *localtime = std::localtime(&now);
@@ -288,7 +275,7 @@ std::tm *glClock_NG::getLocalTime(){
     return localtime;
 }
 
-void glClock_NG::UpdateWindowTitle(GLFWwindow *window){
+void glClockpp::UpdateWindowTitle(SDL_Window *window){
     
     auxinfo.clear();
 
@@ -304,5 +291,79 @@ void glClock_NG::UpdateWindowTitle(GLFWwindow *window){
 
 
     title = auxinfo;
-    glfwSetWindowTitle(window, title.c_str());
+    SDL_SetWindowTitle(window, title.c_str());
+}
+
+
+void glClockpp::handleKeyboardEvent(SDL_Event &e){
+
+    Camera &camera = getCamera();
+
+    float dTime = getDeltaTime();
+
+    switch(e.key.key){
+        
+        case SDLK_W:
+            camera.ProcessKeyboard(FORWARD, dTime);
+            break;
+        
+        case SDLK_S:
+            camera.ProcessKeyboard(BACKWARD, dTime);
+            break;
+
+        case SDLK_A:
+            camera.ProcessKeyboard(LEFT, dTime);
+            break;
+
+        case SDLK_D:
+            camera.ProcessKeyboard(RIGHT, dTime);
+            break;
+
+        default:
+            break;
+
+    }
+
+}
+
+void glClockpp::handleMouseEvent(SDL_Window *window, SDL_Event &e) {
+    if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+        if (e.button.button == SDL_BUTTON_LEFT) {
+            setMouseRotating(true);
+            SDL_SetWindowRelativeMouseMode(window, true);
+        }
+    } else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+        if (e.button.button == SDL_BUTTON_LEFT) {
+            setMouseRotating(false);
+            SDL_SetWindowRelativeMouseMode(window, false);
+        }
+    }
+}
+
+void glClockpp::handleMouseMotionEvent(SDL_Event &e) {
+    if (!getMouseRotating()) return;
+
+    float xoffset = e.motion.xrel;
+    float yoffset = e.motion.yrel;
+
+    camera.ProcessMouseMovement(xoffset, yoffset);
+}
+
+
+void glClockpp::handleMouseScrollEvent(SDL_Event &e){
+    Camera &camera = getCamera();
+
+    if(e.type == SDL_EVENT_MOUSE_WHEEL){
+        camera.ProcessMouseScroll(e.wheel.y);
+    }
+}
+
+void glClockpp::handleWindowSizeChange(){
+
+    SDL_GetWindowSizeInPixels(gWindow, &window_Width, &window_Height);
+
+    glViewport(0, 0, window_Width, window_Height);
+
+
+
 }
