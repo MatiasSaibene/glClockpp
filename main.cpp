@@ -123,8 +123,9 @@ int main(){
 
     // positions of the point lights
     glm::vec3 pointLightPositions[] = {
-        glm::vec3(-0.1305f, 0.0973f, 0.1043f),
-        glm::vec3(0.1468f, 0.0973f, 0.1043f),
+    glm::vec3(0.2f, 0.1f, -0.1f),
+    glm::vec3(-0.2f, 0.1f, -0.1f),
+    glm::vec3(0.0f, 0.1f, 0.2f)
     };
 
     // build and compile shaders
@@ -243,6 +244,14 @@ int main(){
         modelShader.setFloat("pointLights[1].constant", 1.0f);
         modelShader.setFloat("pointLights[1].linear", 0.09f);
         modelShader.setFloat("pointLights[1].quadratic", 0.032f);
+        // point light 3
+        modelShader.setVec3("pointLights[2].position", pointLightPositions[2]);
+        modelShader.setVec3("pointLights[2].ambient", 0.05f, 0.05f, 0.05f);
+        modelShader.setVec3("pointLights[2].diffuse", 0.8f, 0.8f, 0.8f);
+        modelShader.setVec3("pointLights[2].specular", 1.0f, 1.0f, 1.0f);
+        modelShader.setFloat("pointLights[2].constant", 1.0f);
+        modelShader.setFloat("pointLights[2].linear", 0.09f);
+        modelShader.setFloat("pointLights[2].quadratic", 0.032f);
         // spotLight...
 
 
@@ -312,11 +321,19 @@ void glClockpp::UpdateWindowTitle(SDL_Window *window){
 
 void glClockpp::handleKeyboardEvent(SDL_Event &e){
 
+    SDL_Event quit_event;
+    SDL_zero(quit_event);
+    quit_event.type = SDL_EVENT_QUIT;
+
     Camera &camera = getCamera();
 
     float dTime = getDeltaTime();
 
     switch(e.key.key){
+
+        case SDLK_ESCAPE:
+            SDL_PushEvent(&quit_event);
+            break;
         
         case SDLK_W:
             camera.ProcessKeyboard(FORWARD, dTime/10);
