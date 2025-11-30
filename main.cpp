@@ -11,9 +11,7 @@
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_timer.h>
 #include <SDL3/SDL_video.h>
-#include <cstring>
 #include <ctime>
-#include <cstddef>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/glm.hpp>
@@ -44,6 +42,8 @@ glClockpp::glClockpp(){
     //initialize window
     gWindow = nullptr;
     gRenderer = nullptr;
+    window_Width = 0;
+    window_Height = 0;
 
     SDL_zero(event);
 }
@@ -88,6 +88,8 @@ int main(){
     //Useful variables
     int exitCode{0};
     int width = 4, height = 3;
+    Uint64 NOW = SDL_GetPerformanceCounter();
+    Uint64 LAST = 0;
 
     glClockpp glClock;
 
@@ -116,6 +118,8 @@ int main(){
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
 
     // positions of the point lights
     glm::vec3 pointLightPositions[] = {
@@ -125,16 +129,17 @@ int main(){
 
     // build and compile shaders
     // -------------------------
-    Shader modelShader("model_shader.vs", "model_shader.fs");
+    Shader modelShader("res/model_shader.vs", "res/model_shader.fs");
 
     // load models
     // -----------
-    Model clockModel("3DClock.obj");
+    Model clockModel("res/3DClock.obj");
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    Model hourHand("Hours_hand.obj");
-    Model minutesHand("Minutes_hand.obj");
+    Model hourHand("res/Hours_hand.obj");
+    Model minutesHand("res/Minutes_hand.obj");
+    Model glassCover("res/glass.obj");
 
     int hours = 0;
     int minutes = 0;
@@ -199,6 +204,11 @@ int main(){
             SDL_DelayNS(nsPerFrame - frameNS);
         }
 
+        //Delta time
+        LAST = NOW;
+        NOW = SDL_GetPerformanceCounter();
+        glClock.setDeltaTime((double)((NOW - LAST)*1000 / (double)SDL_GetPerformanceFrequency()));
+
         // render
         // ------
         glClearColor(0.06301f, 0.024157f, 0.283149f, 1.0f);
@@ -212,11 +222,11 @@ int main(){
         modelShader.setFloat("material.shininess", 32.0f);
         modelShader.setVec3("viewPos", camera.Position);
 
-        // directional light
+        /* // directional light
         modelShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
         modelShader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
         modelShader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
-        modelShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
+        modelShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f); */
         // point light 1
         modelShader.setVec3("pointLights[0].position", pointLightPositions[0]);
         modelShader.setVec3("pointLights[0].ambient", 0.05f, 0.05f, 0.05f);
@@ -259,6 +269,11 @@ int main(){
         modelShader.setMat4("model", minuteModel);
         minutesHand.Draw(modelShader);
 
+        glm::mat4 glassCoverModel = glm::rotate(glm::mat4(1.0), glm::degrees(0.0f), glm::vec3(0.0, 0.0, 1.0));
+        modelShader.setMat4("model", glassCoverModel);
+        glassCover.Draw(modelShader);       
+
+
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         SDL_GL_SwapWindow(window);
@@ -279,7 +294,7 @@ void glClockpp::UpdateWindowTitle(SDL_Window *window){
     
     auxinfo.clear();
 
-    auxinfo = "glClock++ v1.0 Beta - (c)2025, Matías Saibene";
+    auxinfo = "glClock++ v0.2 Beta - (c)2025, Matías Saibene";
     auxinfo += " | ";
     auxinfo += "OpenGL info:";
     auxinfo += " ";
@@ -304,19 +319,19 @@ void glClockpp::handleKeyboardEvent(SDL_Event &e){
     switch(e.key.key){
         
         case SDLK_W:
-            camera.ProcessKeyboard(FORWARD, dTime);
+            camera.ProcessKeyboard(FORWARD, dTime/10);
             break;
         
         case SDLK_S:
-            camera.ProcessKeyboard(BACKWARD, dTime);
+            camera.ProcessKeyboard(BACKWARD, dTime/10);
             break;
 
         case SDLK_A:
-            camera.ProcessKeyboard(LEFT, dTime);
+            camera.ProcessKeyboard(LEFT, dTime/10);
             break;
 
         case SDLK_D:
-            camera.ProcessKeyboard(RIGHT, dTime);
+            camera.ProcessKeyboard(RIGHT, dTime/10);
             break;
 
         default:

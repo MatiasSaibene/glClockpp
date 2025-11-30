@@ -5,44 +5,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS_DEBUG "-g -Wall -Wextra")
 
-set(SHADER_FILES
-    model_shader.vs
-    model_shader.fs
-)
-
-set(TEXTURE_FILES
-    Clock_face.png
-    blanco.png
-    celeste.png
-    gris.png
-    negro.png
-)
-
-set(MODEL_FILES
-    3DClock.obj
-    3DClock.mtl
-    Minutes_hand.obj
-    Minutes_hand.mtl
-    Hours_hand.obj
-    Hours_hand.mtl
-)
-
 set(DEST_DIR ${CMAKE_BINARY_DIR})
 
-# Copiar shaders
-foreach(FILE ${SHADER_FILES})
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${FILE} ${DEST_DIR}/${FILE} COPYONLY)
-endforeach()
-
-# Copiar texturas
-foreach(FILE ${TEXTURE_FILES})
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${FILE} ${DEST_DIR}/${FILE} COPYONLY)
-endforeach()
-
-# Copiar modelos
-foreach(FILE ${MODEL_FILES})
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${FILE} ${DEST_DIR}/${FILE} COPYONLY)
-endforeach()
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res DESTINATION ${CMAKE_BINARY_DIR})
 
 #Include GLAD directories
 include_directories(${CMAKE_SOURCE_DIR})

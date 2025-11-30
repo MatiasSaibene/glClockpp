@@ -218,8 +218,7 @@ class Model{
 
 inline unsigned int TextureFromFile(const char *path, const std::string &directory, bool gamma)
 {
-    std::string filename = std::string(path);
-    filename = filename;
+    std::string filename = directory + "/" + std::string(path);
 
     unsigned int textureID;
     glGenTextures(1, &textureID);
@@ -249,11 +248,12 @@ inline unsigned int TextureFromFile(const char *path, const std::string &directo
     }
     else
     {
-        std::cout << "Texture failed to load at path: " << path << std::endl;
+        std::cout << "Texture failed to load at: " << filename << std::endl;
         stbi_image_free(data);
     }
 
     return textureID;
 }
+
 
 #endif //!_MODEL_HPP
