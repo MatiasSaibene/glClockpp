@@ -39,11 +39,18 @@ glClockpp::glClockpp(){
     deltaTime = 0.0f;
     lastFrame = 0.0f;
 
+    //initialize time variables
+    hours = 0;
+    minutes = 0;
+    hourAngle = 0.0f;
+    minuteAngle = 0.0f;
+
     //initialize window
     gWindow = nullptr;
     gRenderer = nullptr;
-    window_Width = 0;
-    window_Height = 0;
+
+    window_Width = 4;
+    window_Height = 3;
 
     SDL_zero(event);
 }
@@ -83,11 +90,10 @@ bool glClockpp::initializeSDL(){
 
 }
 
-int main(){
+int main(int argc, char *argv[]){
 
     //Useful variables
     int exitCode{0};
-    int width = 4, height = 3;
     Uint64 NOW = SDL_GetPerformanceCounter();
     Uint64 LAST = 0;
 
@@ -120,13 +126,7 @@ int main(){
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
-
-    // positions of the point lights
-    glm::vec3 pointLightPositions[] = {
-    glm::vec3(0.2f, 0.1f, -0.1f),
-    glm::vec3(-0.2f, 0.1f, -0.1f),
-    glm::vec3(0.0f, 0.1f, 0.2f)
-    };
+    glEnable(GL_CULL_FACE);
 
     // build and compile shaders
     // -------------------------
@@ -141,11 +141,6 @@ int main(){
     Model hourHand("res/Hours_hand.obj");
     Model minutesHand("res/Minutes_hand.obj");
     Model glassCover("res/glass.obj");
-
-    int hours = 0;
-    int minutes = 0;
-    float hourAngle = 0.0f;
-    float minuteAngle = 0.0f;
 
     glClock.UpdateWindowTitle(window);
 
@@ -184,18 +179,9 @@ int main(){
 
                 case SDL_EVENT_WINDOW_RESIZED:
                     glClock.handleWindowSizeChange();
-                    width = glClock.getWindowWidth();
-                    height = glClock.getWindowHeight();
                     break;
             }
         }
-
-        auto *lTime = glClock.getLocalTime();
-        hours = lTime->tm_hour;
-        minutes = lTime->tm_min;
-
-        hourAngle = -((hours + minutes / 60.0f) * 30.0f);
-        minuteAngle = -(minutes * 6.0f);
 
         // per-frame time logic
         // --------------------
@@ -215,20 +201,43 @@ int main(){
         glClearColor(0.06301f, 0.024157f, 0.283149f, 1.0f);
         //glClearColor(1.0f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        glClock.drawGirodNormal(modelShader, clockModel, hourHand, minutesHand, glassCover);
 
-        // don't forget to enable shader before setting uniforms
-        modelShader.use();
+        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+        // -------------------------------------------------------------------------------
+        SDL_GL_SwapWindow(window);
+    }
 
-        // Material
-        modelShader.setFloat("material.shininess", 32.0f);
-        modelShader.setVec3("viewPos", camera.Position);
+    return exitCode;
+}
 
-        /* // directional light
-        modelShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-        modelShader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
-        modelShader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
-        modelShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f); */
-        // point light 1
+//Clock drawing functions
+
+void glClockpp::drawGirodNormal(Shader &modelShader, Model &clockModel, Model &hoursHandModel, Model &minutesHandModel, Model &glassCoverModel, ...){
+
+    // don't forget to enable shader before setting uniforms
+    modelShader.use();
+    // Material settings
+    modelShader.setFloat("material.shininess", 32.0f);
+    modelShader.setVec3("viewPos", camera.Position);
+
+
+    auto *lTime = getLocalTime();
+    hours = lTime->tm_hour;
+    minutes = lTime->tm_min;
+
+    hourAngle = -((hours + minutes / 60.0f) * 30.0f);
+    minuteAngle = -(minutes * 6.0f);
+
+    // positions of the point lights
+    glm::vec3 pointLightPositions[] = {
+    glm::vec3(0.2f, 0.1f, -0.1f),
+    glm::vec3(-0.2f, 0.1f, -0.1f),
+    glm::vec3(0.0f, 0.1f, 0.2f)
+    };
+
+    // point light 1
         modelShader.setVec3("pointLights[0].position", pointLightPositions[0]);
         modelShader.setVec3("pointLights[0].ambient", 0.05f, 0.05f, 0.05f);
         modelShader.setVec3("pointLights[0].diffuse", 0.8f, 0.8f, 0.8f);
@@ -256,7 +265,7 @@ int main(){
 
 
         // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)width / height, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)window_Width / window_Height, 0.1f, 100.0f);
         //glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 view = camera.GetViewMatrix();
         modelShader.setMat4("projection", projection);
@@ -272,24 +281,16 @@ int main(){
 
         glm::mat4 hourModel = glm::rotate(glm::mat4(1.0f), glm::radians(hourAngle), glm::vec3(0.0f, 0.0f, 1.0f));
         modelShader.setMat4("model", hourModel);
-        hourHand.Draw(modelShader);
+        hoursHandModel.Draw(modelShader);
 
         glm::mat4 minuteModel = glm::rotate(glm::mat4(1.0f), glm::radians(minuteAngle), glm::vec3(0.0f, 0.0f, 1.0f));
         modelShader.setMat4("model", minuteModel);
-        minutesHand.Draw(modelShader);
+        minutesHandModel.Draw(modelShader);
 
-        glm::mat4 glassCoverModel = glm::rotate(glm::mat4(1.0), glm::degrees(0.0f), glm::vec3(0.0, 0.0, 1.0));
-        modelShader.setMat4("model", glassCoverModel);
-        glassCover.Draw(modelShader);       
-
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
-        SDL_GL_SwapWindow(window);
-    }
-
-    return exitCode;
+        glassCoverModel.Draw(modelShader);
 }
+
+//Misc functions
 
 std::tm *glClockpp::getLocalTime(){
 
@@ -318,6 +319,7 @@ void glClockpp::UpdateWindowTitle(SDL_Window *window){
     SDL_SetWindowTitle(window, title.c_str());
 }
 
+//Handlers
 
 void glClockpp::handleKeyboardEvent(SDL_Event &e){
 
@@ -395,7 +397,5 @@ void glClockpp::handleWindowSizeChange(){
     SDL_GetWindowSizeInPixels(gWindow, &window_Width, &window_Height);
 
     glViewport(0, 0, window_Width, window_Height);
-
-
 
 }

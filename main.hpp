@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Model.hpp"
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_video.h>
@@ -23,6 +24,8 @@ class glClockpp{
         
         glClockpp();
         ~glClockpp();
+
+        void drawGirodNormal(Shader &modelShader, Model &clockModel, Model &hourModel, Model &minuteModel, Model &glassCoverModel, ...);
 
         std::tm *getLocalTime();
 
@@ -60,6 +63,12 @@ class glClockpp{
         //timing
         float deltaTime;
         float lastFrame;
+
+        //Time variables
+        int hours;
+        int minutes;
+        float hourAngle;
+        float minuteAngle;
 
         //Window and title info
         int window_Width;
